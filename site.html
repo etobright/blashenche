@@ -117,17 +117,21 @@
     }
     h1 {
       margin: 24px 0 0;
-      font-size: clamp(58px, 10vw, 138px);
+      font-size: clamp(46px, 7.8vw, 112px);
       line-height: .88;
       font-weight: 540;
       letter-spacing: 0;
+      max-width: 100%;
     }
     .gradient-text {
       display: block;
+      max-width: 100%;
       background: linear-gradient(135deg, #fff 0%, #fff4d0 32%, var(--gold) 54%, var(--red) 100%);
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
+      overflow-wrap: normal;
+      white-space: nowrap;
     }
     .hero-copy {
       max-width: 700px;
@@ -412,8 +416,13 @@
       .live-preview { min-height: 420px; }
       .nav-links a:not(.nav-cta) { display: none; }
       .hero { min-height: auto; padding-top: 58px; }
+      h1 { font-size: clamp(44px, 15vw, 86px); }
       .card { min-height: auto; }
       footer.site-footer { flex-direction: column; }
+    }
+
+    @media (max-width: 520px) {
+      h1 { font-size: clamp(40px, 13vw, 66px); }
     }
   </style>
 </head>
