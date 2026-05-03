@@ -27,6 +27,10 @@ app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', '..', 'bright-ai-web.html'));
 });
 
+app.get('/site', (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', '..', 'site.html'));
+});
+
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server, maxPayload: 2 * 1024 * 1024 });
 
