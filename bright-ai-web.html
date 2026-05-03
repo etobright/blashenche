@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <title>Bright AI Live</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --gold: #ffbd18;
+      --orange: #ff7a2f;
+      --red: #ff3f5f;
+      --bg: #07070f;
+    }
+
+    html, body { height: 100%; }
+    body {
+      height: 100dvh;
+      overflow: hidden;
+      font-family: "Google Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #fff;
+      background:
+        radial-gradient(ellipse 90% 48% at 52% 104%, rgba(255,63,95,.86) 0%, rgba(255,122,47,.76) 34%, rgba(82,36,34,.58) 58%, transparent 76%),
+        linear-gradient(180deg, #111113 0%, #111217 36%, #241819 58%, #5d2b20 78%, #ffbd18 100%);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button { font: inherit; }
+
+    .app {
+      position: relative;
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      isolation: isolate;
+    }
+
+    .glow {
+      position: absolute;
+      inset: auto 0 0;
+      height: 58%;
+      opacity: .72;
+      pointer-events: none;
+      z-index: -1;
+    }
+    .glow::before,
+    .glow::after { content: ""; position: absolute; inset: 0; }
+    .glow::before {
+      inset: 18% -8% -18%;
+      background:
+        radial-gradient(ellipse 10% 58% at 10% 100%, rgba(255,189,24,.48), transparent 74%),
+        radial-gradient(ellipse 12% 70% at 22% 100%, rgba(255,122,47,.52), transparent 72%),
+        radial-gradient(ellipse 13% 76% at 47% 100%, rgba(255,63,95,.58), transparent 74%),
+        radial-gradient(ellipse 13% 82% at 73% 100%, rgba(255,122,47,.5), transparent 74%),
+        radial-gradient(ellipse 10% 58% at 88% 100%, rgba(255,189,24,.46), transparent 72%);
+      filter: blur(30px);
+      animation: wave 1.4s ease-in-out infinite;
+    }
+    .glow::after {
+      background: radial-gradient(ellipse 90% 68% at 50% 100%, rgba(255,189,24,.72) 0%, rgba(255,122,47,.5) 38%, rgba(255,63,95,.36) 62%, transparent 84%);
+      filter: blur(28px);
+      animation: breathe 3.8s ease-in-out infinite;
+    }
+    .glow.idle::before { opacity: 0; }
+    .glow.idle::after { animation-duration: 5s; opacity: .72; }
+    .glow.listening::before { animation-duration: .9s; }
+    .glow.speaking::before { animation-duration: .62s; }
+
+    @keyframes wave {
+      0%, 100% { transform: scaleY(.72) translateY(10%); }
+      50% { transform: scaleY(1.22) translateY(-4%); }
+    }
+    @keyframes breathe {
+      0%, 100% { opacity: .68; transform: scaleY(.96); }
+      50% { opacity: .94; transform: scaleY(1.04); }
+    }
+
+    main {
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 0 20px 80px;
+    }
+    .orb-wrap {
+      position: relative;
+      width: min(310px, 70vw);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+    }
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.14);
+      animation: ring 4s ease-in-out infinite;
+    }
+    .r1 { width: 78%; height: 78%; opacity: .55; }
+    .r2 { width: 98%; height: 98%; opacity: .24; animation-delay: .6s; }
+    @keyframes ring {
+      0%, 100% { transform: scale(.96); }
+      50% { transform: scale(1.05); }
+    }
+    .orb {
+      width: 56%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      overflow: hidden;
+      position: relative;
+      background: linear-gradient(145deg, var(--gold) 0%, var(--orange) 48%, var(--red) 100%);
+      box-shadow: 0 0 52px rgba(255,122,47,.5), inset 0 -14px 42px rgba(0,0,0,.2);
+      animation: idle 3.2s ease-in-out infinite;
+    }
+    .orb::after {
+      content: "";
+      position: absolute;
+      top: 13%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 42%;
+      height: 17%;
+      border-radius: 50%;
+      background: rgba(255,255,255,.28);
+    }
+    .orb.listening { animation: active .75s ease-in-out infinite; }
+    .orb.speaking { animation: speak .62s ease-in-out infinite; }
+    @keyframes idle {
+      0%, 100% { transform: scale(.98); }
+      50% { transform: scale(1.04); }
+    }
+    @keyframes active {
+      0%, 100% { transform: scale(1.03); }
+      50% { transform: scale(1.15); }
+    }
+    @keyframes speak {
+      0%, 100% { transform: scale(1.02); }
+      35% { transform: scale(1.16); }
+      70% { transform: scale(1.07); }
+    }
+
+    footer {
+      padding: 0 32px max(28px, env(safe-area-inset-bottom));
+      display: grid;
+      justify-items: center;
+      gap: 14px;
+    }
+    .stop {
+      border: 1px solid rgba(255,88,88,.5);
+      background: rgba(255,88,88,.12);
+      color: #ffaaaa;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 26px;
+      border-radius: 22px;
+      display: none;
+    }
+    .stop.visible { display: block; }
+    .mic {
+      width: 82px;
+      height: 82px;
+      border: none;
+      border-radius: 50%;
+      color: #fff;
+      background: linear-gradient(145deg, var(--gold) 0%, var(--orange) 48%, var(--red) 100%);
+      box-shadow: 0 8px 32px rgba(255,95,62,.42);
+      display: grid;
+      place-items: center;
+      transition: transform .15s, box-shadow .2s, opacity .2s;
+    }
+    .mic.recording {
+      transform: scale(.94);
+      box-shadow: 0 8px 34px rgba(255,95,62,.5);
+    }
+    .mic.live {
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.18);
+      box-shadow: 0 8px 34px rgba(255,95,62,.34), inset 0 0 0 1px rgba(255,255,255,.08);
+      backdrop-filter: blur(18px);
+    }
+    .mic:disabled { opacity: .42; cursor: default; }
+    .mic svg { width: 31px; height: 31px; fill: currentColor; }
+    .mic .icon-live { display: none; }
+    .mic.live .icon-mic { display: none; }
+    .mic.live .icon-live { display: block; }
+
+    .level,
+    .subtitle,
+    .hint,
+    .mic-hint {
+      display: none !important;
+    }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      max-width: min(460px, calc(100vw - 32px));
+      transform: translate(-50%, 16px);
+      padding: 12px 16px;
+      border-radius: 14px;
+      background: rgba(12,12,24,.92);
+      border: 1px solid rgba(255,255,255,.12);
+      color: rgba(255,255,255,.9);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s, transform .2s;
+      z-index: 99;
+    }
+    .toast.visible { opacity: 1; transform: translate(-50%, 0); }
+
+    .splash {
+      position: fixed;
+      inset: 0;
+      z-index: 120;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(ellipse 74% 52% at 50% 112%, rgba(255,189,24,.9), rgba(255,122,47,.64) 42%, transparent 74%),
+        radial-gradient(circle at 50% 45%, rgba(255,63,95,.2), transparent 34%),
+        #0b0b10;
+      transition: opacity .7s ease, visibility .7s ease;
+    }
+    .splash.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .splash-brand {
+      text-align: center;
+      transform: translateY(12px) scale(.98);
+      animation: splashIn 1.05s cubic-bezier(.16, 1, .3, 1) both;
+    }
+    .splash-title {
+      font-size: clamp(48px, 11vw, 118px);
+      font-weight: 520;
+      line-height: .95;
+      letter-spacing: 0;
+      background: linear-gradient(135deg, #fff 0%, #fff5d2 36%, #ffbd18 58%, #ff3f5f 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 26px 70px rgba(255,95,62,.25);
+    }
+    .splash-byline {
+      margin-top: 14px;
+      color: rgba(255,255,255,.66);
+      font-size: clamp(14px, 2.4vw, 20px);
+      font-weight: 600;
+    }
+    .splash-line {
+      width: min(280px, 54vw);
+      height: 3px;
+      margin: 28px auto 0;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,.12);
+    }
+    .splash-line::after {
+      content: "";
+      display: block;
+      width: 42%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--gold), var(--orange), var(--red));
+      animation: splashLoad 1.2s ease-in-out infinite;
+    }
+    @keyframes splashIn {
+      0% { opacity: 0; transform: translateY(24px) scale(.94); filter: blur(12px); }
+      100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    }
+    @keyframes splashLoad {
+      0% { transform: translateX(-110%); }
+      100% { transform: translateX(250%); }
+    }
+  </style>
+</head>
+<body>
+  <div id="splash" class="splash">
+    <div class="splash-brand">
+      <div class="splash-title">Blashenche</div>
+      <div class="splash-byline">By Eto Juliano Bright</div>
+      <div class="splash-line"></div>
+    </div>
+  </div>
+
+  <div class="app">
+    <div id="glow" class="glow idle"></div>
+    <main>
+      <section>
+        <p id="status" class="hint">Connecting...</p>
+        <div class="orb-wrap">
+          <div class="ring r1"></div>
+          <div class="ring r2"></div>
+          <div id="orb" class="orb"></div>
+        </div>
+        <div class="level"><span id="level"></span></div>
+        <div id="subtitle" class="subtitle"></div>
+      </section>
+    </main>
+
+    <footer>
+      <button id="stop" class="stop">Stop</button>
+      <button id="mic" class="mic" disabled aria-label="Microphone">
+        <svg class="icon-mic" viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>
+        <svg class="icon-live" viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5Z"/></svg>
+      </button>
+      <span id="micHint" class="mic-hint">Click to speak</span>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const WS_URL = location.protocol.startsWith('http')
+      ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`
+      : 'ws://localhost:3001';
+    const INPUT_SR = 16000;
+    const OUTPUT_SR = 24000;
+    const CHUNK = 2048;
+
+    let ws = null;
+    let ready = false;
+    let sessionActive = false;
+    let recording = false;
+    let playing = false;
+    let micStream = null;
+    let captureCtx = null;
+    let processor = null;
+    let playCtx = null;
+    let nextPlayAt = 0;
+    let sources = new Set();
+    let transcript = '';
+    let aiText = '';
+    let lastSpeechAt = 0;
+    let inSpeech = false;
+    let lastActivityEndAt = 0;
+    let autoRestartTimer = null;
+
+    const mic = document.getElementById('mic');
+    const stopBtn = document.getElementById('stop');
+    const statusEl = document.getElementById('status');
+    const orb = document.getElementById('orb');
+    const glow = document.getElementById('glow');
+    const levelBar = document.getElementById('level');
+    const micHint = document.getElementById('micHint');
+    const splash = document.getElementById('splash');
+
+    connect();
+    window.addEventListener('load', () => {
+      setTimeout(() => splash.classList.add('hidden'), 1800);
+    });
+
+    function connect() {
+      setStatus('Connecting...');
+      ws = new WebSocket(WS_URL);
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'START', name: 'there', language: 'fr-FR' }));
+      };
+      ws.onmessage = ({ data }) => {
+        let msg;
+        try { msg = JSON.parse(data); } catch { return; }
+        handleMessage(msg);
+      };
+      ws.onclose = () => {
+        setReady(false);
+        setTimeout(connect, 1800);
+      };
+      ws.onerror = () => setReady(false);
+    }
+
+    function handleMessage(msg) {
+      if (msg.type === 'READY') {
+        setReady(true);
+        setStatus('Ready.');
+      }
+      if (msg.type === 'AUDIO') {
+        playPCM(msg.data);
+        playing = true;
+        setMode('speaking');
+        stopBtn.classList.add('visible');
+      }
+      if (msg.type === 'INPUT_TEXT') {
+        transcript = msg.text || transcript;
+      }
+      if (msg.type === 'TEXT') {
+        aiText += msg.text || '';
+      }
+      if (msg.type === 'DONE') waitPlaybackDone();
+      if (msg.type === 'INTERRUPTED') {
+        stopPlayback();
+        setMode(recording ? 'listening' : 'idle');
+      }
+      if (msg.type === 'ERROR') {
+        toast(msg.message || 'Gemini error');
+        setStatus('Error');
+      }
+    }
+
+    mic.addEventListener('click', async () => {
+      if (!ready) {
+        toast('Gemini is not ready yet.');
+        return;
+      }
+      if (sessionActive) {
+        stopLiveSession();
+        return;
+      }
+      await startLiveSession();
+    });
+
+    async function startLiveSession() {
+      sessionActive = true;
+      mic.classList.add('live');
+      if (playing) {
+        stopPlayback();
+        send({ type: 'INTERRUPT' });
+      }
+      try {
+        await startCapture();
+      } catch (err) {
+        toast(err.name === 'NotAllowedError' ? 'Microphone permission denied' : (err.message || 'Microphone error'));
+        setStatus('Microphone blocked');
+        sessionActive = false;
+        mic.classList.remove('live');
+      }
+    }
+
+    function stopLiveSession() {
+      sessionActive = false;
+      clearTimeout(autoRestartTimer);
+      if (recording) stopCapture({ endStream: true });
+      if (playing) {
+        stopPlayback();
+        send({ type: 'INTERRUPT' });
+      }
+      mic.classList.remove('live');
+      stopBtn.classList.remove('visible');
+      setMode('idle');
+      setStatus('Ready.');
+    }
+
+    stopBtn.addEventListener('click', () => {
+      stopLiveSession();
+    });
+
+    async function startCapture() {
+      if (!sessionActive || recording) return;
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: INPUT_SR,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      captureCtx = new AudioContext({ sampleRate: INPUT_SR });
+      const src = captureCtx.createMediaStreamSource(micStream);
+      processor = captureCtx.createScriptProcessor(CHUNK, 1, 1);
+      src.connect(processor);
+      processor.connect(captureCtx.destination);
+
+      recording = true;
+      transcript = '';
+      aiText = '';
+      mic.classList.add('recording');
+      micHint.textContent = 'Click again to stop';
+      setMode('listening');
+      setStatus('Listening...');
+
+      processor.onaudioprocess = (event) => {
+        if (!recording || ws?.readyState !== WebSocket.OPEN) return;
+        const input = event.inputBuffer.getChannelData(0);
+        const pcm = new Int16Array(input.length);
+        let energy = 0;
+        for (let i = 0; i < input.length; i++) {
+          const sample = Math.max(-1, Math.min(1, input[i]));
+          energy += sample * sample;
+          pcm[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+        }
+        const level = Math.sqrt(energy / input.length);
+        updateMicLevel(level);
+        send({ type: 'AUDIO', data: bufferToBase64(pcm.buffer) });
+      };
+    }
+
+    function stopCapture({ endStream = false } = {}) {
+      recording = false;
+      mic.classList.remove('recording');
+      micHint.textContent = 'Click to speak';
+      levelBar.style.width = '0%';
+      if (processor) { processor.disconnect(); processor = null; }
+      if (micStream) { micStream.getTracks().forEach((track) => track.stop()); micStream = null; }
+      if (captureCtx) { captureCtx.close().catch(() => {}); captureCtx = null; }
+      if (endStream) send({ type: 'TURN_COMPLETE' });
+      inSpeech = false;
+      setMode('idle');
+      setStatus('Ready.');
+    }
+
+    function updateMicLevel(level) {
+      const pct = Math.min(100, Math.round(level * 900));
+      levelBar.style.width = `${pct}%`;
+      const now = performance.now();
+      if (pct > 5) {
+        lastSpeechAt = now;
+        if (!inSpeech && now - lastActivityEndAt > 220) {
+          inSpeech = true;
+        }
+      } else if (inSpeech && now - lastSpeechAt > 820) {
+        inSpeech = false;
+        lastActivityEndAt = now;
+      }
+    }
+
+    function playPCM(base64) {
+      ensurePlayCtx();
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const pcm = new Int16Array(bytes.buffer);
+      if (!pcm.length) return;
+      const floats = new Float32Array(pcm.length);
+      for (let i = 0; i < pcm.length; i++) floats[i] = pcm[i] / 32768;
+      const buffer = playCtx.createBuffer(1, floats.length, OUTPUT_SR);
+      buffer.copyToChannel(floats, 0);
+      const src = playCtx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(playCtx.destination);
+      src.onended = () => sources.delete(src);
+      sources.add(src);
+      const at = Math.max(playCtx.currentTime + .04, nextPlayAt);
+      src.start(at);
+      nextPlayAt = at + buffer.duration;
+    }
+
+    function ensurePlayCtx() {
+      if (!playCtx || playCtx.state === 'closed') {
+        playCtx = new AudioContext({ sampleRate: OUTPUT_SR });
+        nextPlayAt = playCtx.currentTime;
+      }
+      if (playCtx.state === 'suspended') playCtx.resume().catch(() => {});
+    }
+
+    function waitPlaybackDone() {
+      if (!playCtx || playCtx.currentTime >= nextPlayAt - .08) {
+        playing = false;
+        stopBtn.classList.remove('visible');
+        setMode(sessionActive && recording ? 'listening' : 'idle');
+        setStatus('Ready.');
+      } else {
+        setTimeout(waitPlaybackDone, 120);
+      }
+    }
+
+    function stopPlayback() {
+      playing = false;
+      sources.forEach((src) => { try { src.stop(); } catch (_) {} });
+      sources.clear();
+      if (playCtx && playCtx.state !== 'closed') playCtx.close().catch(() => {});
+      playCtx = null;
+      nextPlayAt = 0;
+      stopBtn.classList.remove('visible');
+    }
+
+    function send(payload) {
+      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
+    }
+
+    function setReady(ok) {
+      ready = ok;
+      mic.disabled = !ok;
+      if (!ok && sessionActive) stopLiveSession();
+    }
+
+    function setMode(mode) {
+      orb.className = `orb ${mode === 'idle' ? '' : mode}`;
+      glow.className = `glow ${mode}`;
+    }
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function toast(text) {
+      const el = document.getElementById('toast');
+      el.textContent = text;
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 3400);
+    }
+
+    function bufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return btoa(binary);
+    }
+  </script>
+</body>
+</html>
