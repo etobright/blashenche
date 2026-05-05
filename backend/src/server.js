@@ -44,7 +44,7 @@ app.post('/api/auth/google', async (req, res) => {
     }
 
     const profile = await verifyGoogleCredential(credential);
-    const user = recordLogin(profile);
+    const user = await recordLogin(profile);
     res.json({ user });
   } catch (err) {
     console.error('[Auth] Google error:', err.message);
@@ -52,20 +52,30 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-app.post('/api/usage/event', (req, res) => {
-  recordEvent({
-    type: String(req.body?.type || 'event').slice(0, 80),
-    user: req.body?.user || null,
-  });
-  res.json({ ok: true });
+app.post('/api/usage/event', async (req, res) => {
+  try {
+    await recordEvent({
+      type: String(req.body?.type || 'event').slice(0, 80),
+      user: req.body?.user || null,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Usage] Event error:', err.message);
+    res.status(500).json({ error: err.message || 'Usage event failed' });
+  }
 });
 
-app.get('/admin/usage', (req, res) => {
+app.get('/admin/usage', async (req, res) => {
   if (!process.env.ADMIN_PIN || req.query.pin !== process.env.ADMIN_PIN) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
-  res.json(getUsageSummary());
+  try {
+    res.json(await getUsageSummary());
+  } catch (err) {
+    console.error('[Usage] Summary error:', err.message);
+    res.status(500).json({ error: err.message || 'Usage summary failed' });
+  }
 });
 
 app.get('/', (_req, res) => {
