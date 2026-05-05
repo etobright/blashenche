@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <title>Bright AI Live</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600;700&display=swap');
 
@@ -210,6 +211,57 @@
     }
     .toast.visible { opacity: 1; transform: translate(-50%, 0); }
 
+    .auth-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 110;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(ellipse 80% 46% at 50% 106%, rgba(255,189,24,.72), rgba(255,122,47,.38) 44%, transparent 76%),
+        rgba(9,9,13,.92);
+      backdrop-filter: blur(24px);
+    }
+    .auth-gate.hidden { display: none; }
+    .auth-card {
+      width: min(430px, 100%);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 8px;
+      background: rgba(255,255,255,.08);
+      padding: 28px;
+      text-align: center;
+      box-shadow: 0 34px 90px rgba(0,0,0,.36);
+    }
+    .auth-dot {
+      width: 42px;
+      height: 42px;
+      margin: 0 auto 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold), var(--orange), var(--red));
+      box-shadow: 0 0 34px rgba(255,122,47,.54);
+    }
+    .auth-card h2 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.08;
+    }
+    .auth-card p {
+      color: rgba(255,255,255,.66);
+      line-height: 1.5;
+      margin: 12px 0 22px;
+    }
+    #googleSignIn {
+      display: grid;
+      justify-content: center;
+    }
+    .auth-error {
+      margin-top: 14px;
+      color: #ffb4b4;
+      min-height: 20px;
+      font-size: 14px;
+    }
+
     .splash {
       position: fixed;
       inset: 0;
@@ -277,6 +329,16 @@
   </style>
 </head>
 <body>
+  <div id="authGate" class="auth-gate">
+    <div class="auth-card">
+      <div class="auth-dot"></div>
+      <h2>Connexion a Blashenche</h2>
+      <p>Connecte-toi avec Google pour utiliser l'app et permettre au createur de suivre les utilisations.</p>
+      <div id="googleSignIn"></div>
+      <div id="authError" class="auth-error"></div>
+    </div>
+  </div>
+
   <div id="splash" class="splash">
     <div class="splash-brand">
       <div class="splash-title">Blashenche</div>
@@ -320,6 +382,8 @@
     const OUTPUT_SR = 24000;
     const CHUNK = 2048;
 
+    let appConfig = {};
+    let currentUser = null;
     let ws = null;
     let ready = false;
     let sessionActive = false;
@@ -346,11 +410,121 @@
     const levelBar = document.getElementById('level');
     const micHint = document.getElementById('micHint');
     const splash = document.getElementById('splash');
+    const authGate = document.getElementById('authGate');
+    const authError = document.getElementById('authError');
 
-    connect();
+    init();
     window.addEventListener('load', () => {
       setTimeout(() => splash.classList.add('hidden'), 1800);
     });
+
+    async function init() {
+      await loadConfig();
+      setupAnalytics();
+      setupGoogleSignIn();
+      connect();
+      trackEvent('app_view');
+    }
+
+    async function loadConfig() {
+      try {
+        const response = await fetch('/config');
+        appConfig = await response.json();
+      } catch {
+        appConfig = {};
+      }
+    }
+
+    function setupAnalytics() {
+      if (!appConfig.gaMeasurementId) return;
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(appConfig.gaMeasurementId)}`;
+      document.head.appendChild(script);
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function gtag(){ dataLayer.push(arguments); };
+      gtag('js', new Date());
+      gtag('config', appConfig.gaMeasurementId);
+    }
+
+    function setupGoogleSignIn() {
+      const saved = localStorage.getItem('blashenche_user');
+      if (saved) {
+        try {
+          setAuthenticatedUser(JSON.parse(saved), false);
+          return;
+        } catch {
+          localStorage.removeItem('blashenche_user');
+        }
+      }
+
+      if (!appConfig.googleClientId) {
+        authError.textContent = 'GOOGLE_CLIENT_ID doit etre configure sur Render.';
+        return;
+      }
+
+      waitForGoogleIdentity(() => {
+        google.accounts.id.initialize({
+          client_id: appConfig.googleClientId,
+          callback: handleGoogleCredential,
+        });
+        google.accounts.id.renderButton(document.getElementById('googleSignIn'), {
+          theme: 'filled_black',
+          size: 'large',
+          shape: 'pill',
+          text: 'continue_with',
+          width: 280,
+        });
+      });
+    }
+
+    function waitForGoogleIdentity(callback, tries = 0) {
+      if (window.google?.accounts?.id) {
+        callback();
+        return;
+      }
+      if (tries > 80) {
+        authError.textContent = 'Google Sign-In ne s est pas charge. Recharge la page.';
+        return;
+      }
+      setTimeout(() => waitForGoogleIdentity(callback, tries + 1), 100);
+    }
+
+    window.handleGoogleCredential = async ({ credential }) => {
+      authError.textContent = '';
+      try {
+        const response = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Connexion Google impossible');
+        setAuthenticatedUser(data.user, true);
+      } catch (err) {
+        authError.textContent = err.message || 'Connexion Google impossible.';
+      }
+    };
+
+    function setAuthenticatedUser(user, track = true) {
+      currentUser = user;
+      localStorage.setItem('blashenche_user', JSON.stringify(user));
+      authGate.classList.add('hidden');
+      if (track) trackEvent('login_success', { method: 'google' });
+    }
+
+    function trackEvent(name, params = {}) {
+      if (window.gtag) gtag('event', name, params);
+    }
+
+    function recordUsage(type) {
+      if (!currentUser) return;
+      fetch('/api/usage/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, user: currentUser }),
+      }).catch(() => {});
+    }
 
     function connect() {
       setStatus('Connecting...');
@@ -399,6 +573,11 @@
     }
 
     mic.addEventListener('click', async () => {
+      if (!currentUser) {
+        authGate.classList.remove('hidden');
+        toast('Connecte-toi avec Google pour utiliser Blashenche.');
+        return;
+      }
       if (!ready) {
         toast('Gemini is not ready yet.');
         return;
@@ -413,6 +592,8 @@
     async function startLiveSession() {
       sessionActive = true;
       mic.classList.add('live');
+      trackEvent('mic_session_start');
+      recordUsage('mic_start');
       if (playing) {
         stopPlayback();
         send({ type: 'INTERRUPT' });

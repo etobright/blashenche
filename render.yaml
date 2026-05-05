@@ -13,3 +13,9 @@ services:
         value: gemini-2.5-flash-native-audio-preview-12-2025
       - key: GEMINI_VOICE_NAME
         value: Aoede
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GA_MEASUREMENT_ID
+        sync: false
+      - key: ADMIN_PIN
+        sync: false

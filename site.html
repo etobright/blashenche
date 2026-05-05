@@ -643,5 +643,21 @@
     <span>Blashenche</span>
     <span>By Eto Juliano Bright</span>
   </footer>
+  <script>
+    fetch('/config')
+      .then((response) => response.json())
+      .then((config) => {
+        if (!config.gaMeasurementId) return;
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(config.gaMeasurementId)}`;
+        document.head.appendChild(script);
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function gtag(){ dataLayer.push(arguments); };
+        gtag('js', new Date());
+        gtag('config', config.gaMeasurementId);
+      })
+      .catch(() => {});
+  </script>
 </body>
 </html>
