@@ -386,6 +386,36 @@
       font-size: 18px;
     }
     details p { margin: 12px 0 0; }
+    .feedback-form {
+      display: grid;
+      gap: 12px;
+      margin-top: 22px;
+    }
+    .feedback-form input,
+    .feedback-form textarea {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 8px;
+      color: #fff;
+      background: rgba(255,255,255,.08);
+      outline: none;
+      padding: 13px 14px;
+      font: inherit;
+    }
+    .feedback-form textarea {
+      min-height: 132px;
+      resize: vertical;
+    }
+    .feedback-form input:focus,
+    .feedback-form textarea:focus {
+      border-color: rgba(255,189,24,.74);
+      box-shadow: 0 0 0 3px rgba(255,189,24,.12);
+    }
+    .form-status {
+      min-height: 22px;
+      color: var(--muted);
+      font-size: 14px;
+    }
     .final {
       text-align: center;
       padding-bottom: 104px;
@@ -438,6 +468,7 @@
       <a href="#usages">Usages</a>
       <a href="#createur">Createur</a>
       <a href="#faq">FAQ</a>
+      <a href="#contact">Contact</a>
       <a class="nav-cta" href="https://blashenche.onrender.com/">Ouvrir l'app</a>
     </div>
   </nav>
@@ -630,6 +661,33 @@
       </div>
     </section>
 
+    <section id="contact">
+      <div class="wrap creator">
+        <div class="creator-panel">
+          <div class="eyebrow"><span class="pulse"></span> Contact & feedback</div>
+          <h2 class="creator-name">Aidez Blashenche a grandir.</h2>
+          <p>
+            Blashenche est en premiere version. Chaque retour aide a ameliorer l'experience,
+            corriger les problemes et construire une app plus utile.
+          </p>
+          <p>
+            Vous pouvez partager votre avis, signaler un bug, proposer une idee ou simplement
+            dire ce que vous avez ressenti en utilisant l'application.
+          </p>
+        </div>
+        <div class="quote-panel">
+          <blockquote>Votre retour peut devenir la prochaine amelioration de Blashenche.</blockquote>
+          <form id="feedbackForm" class="feedback-form">
+            <input name="name" autocomplete="name" placeholder="Votre nom">
+            <input name="email" autocomplete="email" type="email" placeholder="Votre email">
+            <textarea name="message" required placeholder="Votre avis, bug ou idee..."></textarea>
+            <button class="button primary" type="submit">Envoyer le feedback</button>
+            <div id="feedbackStatus" class="form-status"></div>
+          </form>
+        </div>
+      </div>
+    </section>
+
     <section class="final">
       <div class="wrap">
         <h2>Essayez Blashenche maintenant.</h2>
@@ -644,6 +702,32 @@
     <span>By Eto Juliano Bright</span>
   </footer>
   <script>
+    const feedbackForm = document.getElementById('feedbackForm');
+    const feedbackStatus = document.getElementById('feedbackStatus');
+
+    feedbackForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      feedbackStatus.textContent = 'Envoi en cours...';
+      const formData = new FormData(feedbackForm);
+      try {
+        const response = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formData.get('name'),
+            email: formData.get('email'),
+            message: formData.get('message'),
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Envoi impossible');
+        feedbackForm.reset();
+        feedbackStatus.textContent = 'Merci. Votre retour a bien ete envoye.';
+      } catch (err) {
+        feedbackStatus.textContent = err.message || 'Envoi impossible.';
+      }
+    });
+
     fetch('/config')
       .then((response) => response.json())
       .then((config) => {

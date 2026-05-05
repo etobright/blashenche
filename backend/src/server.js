@@ -6,7 +6,7 @@ const http = require('http');
 const path = require('path');
 const WebSocket = require('ws');
 const { handleWebSocketConnection } = require('./wsHandler');
-const { getUsageSummary, recordEvent, recordLogin } = require('./usageStore');
+const { getUsageSummary, recordEvent, recordFeedback, recordLogin } = require('./usageStore');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -62,6 +62,19 @@ app.post('/api/usage/event', async (req, res) => {
   } catch (err) {
     console.error('[Usage] Event error:', err.message);
     res.status(500).json({ error: err.message || 'Usage event failed' });
+  }
+});
+
+app.post('/api/feedback', async (req, res) => {
+  try {
+    await recordFeedback({
+      name: req.body?.name,
+      email: req.body?.email,
+      message: req.body?.message,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Feedback failed' });
   }
 });
 
@@ -121,6 +134,7 @@ async function verifyGoogleCredential(credential) {
 function renderUsageDashboard(summary, pin) {
   const users = summary.users || [];
   const events = summary.recentEvents || [];
+  const feedback = summary.feedback || [];
   const todayKey = new Date().toISOString().slice(0, 10);
   const loginsToday = events.filter((event) => event.type === 'login' && String(event.at || '').slice(0, 10) === todayKey).length;
   const micToday = events.filter((event) => event.type === 'mic_start' && String(event.at || '').slice(0, 10) === todayKey).length;
@@ -149,6 +163,17 @@ function renderUsageDashboard(summary, pin) {
       <div>
         <strong>${escapeHtml(event.type || 'event')}</strong>
         <span>${escapeHtml(event.email || event.sub || 'anonymous')} · ${formatDate(event.at)}</span>
+      </div>
+    </li>
+  `).join('');
+
+  const feedbackItems = feedback.map((item) => `
+    <li>
+      <span class="event-dot"></span>
+      <div>
+        <strong>${escapeHtml(item.name || 'Feedback')}</strong>
+        <span>${escapeHtml(item.email || '')} · ${formatDate(item.at)}</span>
+        <p>${escapeHtml(item.message || '')}</p>
       </div>
     </li>
   `).join('');
@@ -439,6 +464,13 @@ function renderUsageDashboard(summary, pin) {
       margin-top: 4px;
       word-break: break-word;
     }
+    .events p {
+      margin: 8px 0 0;
+      color: rgba(255,255,255,.82);
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
     .empty {
       color: var(--muted);
       padding: 28px 22px;
@@ -483,7 +515,7 @@ function renderUsageDashboard(summary, pin) {
       <div class="metric"><b>${Number(summary.totalEvents || 0)}</b><span>evenements recents</span></div>
       <div class="metric"><b>${totalSessions}</b><span>sessions micro</span></div>
       <div class="metric"><b>${loginsToday}</b><span>connexions aujourd'hui</span></div>
-      <div class="metric"><b>${micToday}</b><span>micros aujourd'hui</span></div>
+      <div class="metric"><b>${Number(summary.totalFeedback || 0)}</b><span>feedbacks</span></div>
     </section>
 
     <section class="tools">
@@ -524,6 +556,14 @@ function renderUsageDashboard(summary, pin) {
           <span>${events.length} recents</span>
         </div>
         ${events.length ? `<ul class="events">${eventItems}</ul>` : '<div class="empty">Aucun evenement recent.</div>'}
+      </aside>
+
+      <aside class="panel">
+        <div class="panel-head">
+          <h2>Feedback</h2>
+          <span>${feedback.length} recents</span>
+        </div>
+        ${feedback.length ? `<ul class="events">${feedbackItems}</ul>` : '<div class="empty">Aucun feedback pour le moment.</div>'}
       </aside>
     </section>
   </div>

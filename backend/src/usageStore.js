@@ -45,6 +45,33 @@ async function getUsageSummary() {
   return getUsageSummaryFile();
 }
 
+async function recordFeedback({ name, email, message }) {
+  const feedback = {
+    name: String(name || '').trim().slice(0, 120),
+    email: String(email || '').trim().slice(0, 180),
+    message: String(message || '').trim().slice(0, 3000),
+  };
+  if (!feedback.message) throw new Error('Message is required');
+
+  if (hasSupabase()) {
+    try {
+      await supabaseFetch('/rest/v1/blashenche_feedback', {
+        method: 'POST',
+        body: JSON.stringify(feedback),
+      });
+      return true;
+    } catch (err) {
+      console.error('[Usage] Supabase feedback failed, falling back to file:', err.message);
+    }
+  }
+
+  const data = readUsage();
+  data.feedback = data.feedback || [];
+  data.feedback.push({ ...feedback, at: new Date().toISOString() });
+  writeUsage(data);
+  return true;
+}
+
 async function recordLoginSupabase(profile) {
   const existing = await getSupabaseUser(profile.sub);
   const loginCount = Number(existing?.login_count || 0) + 1;
@@ -103,17 +130,25 @@ async function recordEventSupabase({ type, user }) {
 async function getUsageSummarySupabase() {
   const users = await supabaseFetch('/rest/v1/blashenche_users?select=*&order=last_seen_at.desc');
   const events = await supabaseFetch('/rest/v1/blashenche_events?select=*&order=created_at.desc&limit=100');
+  const feedback = await supabaseFetch('/rest/v1/blashenche_feedback?select=*&order=created_at.desc&limit=50');
 
   return {
     storage: 'supabase',
     totalUsers: users.length,
     totalEvents: events.length,
+    totalFeedback: feedback.length,
     users: users.map(toClientUser),
     recentEvents: events.map((event) => ({
       type: event.type,
       sub: event.sub || '',
       email: event.email || '',
       at: event.created_at,
+    })),
+    feedback: feedback.map((item) => ({
+      name: item.name || '',
+      email: item.email || '',
+      message: item.message || '',
+      at: item.created_at,
     })),
   };
 }
@@ -232,8 +267,10 @@ function getUsageSummaryFile() {
     storage: 'file',
     totalUsers: Object.keys(data.users).length,
     totalEvents: data.events.length,
+    totalFeedback: (data.feedback || []).length,
     users: Object.values(data.users).sort((a, b) => String(b.lastSeenAt).localeCompare(String(a.lastSeenAt))),
     recentEvents: data.events.slice(-100).reverse(),
+    feedback: (data.feedback || []).slice(-50).reverse(),
   };
 }
 
@@ -243,6 +280,7 @@ function trimEvents(data) {
 
 module.exports = {
   getUsageSummary,
+  recordFeedback,
   recordEvent,
   recordLogin,
 };

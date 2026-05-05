@@ -22,3 +22,14 @@ create index if not exists blashenche_events_created_at_idx
 
 create index if not exists blashenche_users_last_seen_at_idx
   on public.blashenche_users (last_seen_at desc);
+
+create table if not exists public.blashenche_feedback (
+  id bigint generated always as identity primary key,
+  name text,
+  email text,
+  message text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists blashenche_feedback_created_at_idx
+  on public.blashenche_feedback (created_at desc);
