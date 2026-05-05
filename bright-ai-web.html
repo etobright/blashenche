@@ -17,8 +17,10 @@
       --bg: #07070f;
     }
 
-    html, body { height: 100%; }
+    html, body { width: 100%; min-height: 100%; }
+    html { overflow-x: hidden; }
     body {
+      width: 100%;
       height: 100dvh;
       overflow: hidden;
       font-family: "Google Sans", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -33,10 +35,13 @@
 
     .app {
       position: relative;
+      width: 100%;
       height: 100dvh;
+      min-height: 100dvh;
       display: grid;
       grid-template-rows: 1fr auto;
       isolation: isolate;
+      overflow: hidden;
     }
 
     .glow {
@@ -84,11 +89,11 @@
       display: grid;
       place-items: center;
       text-align: center;
-      padding: 0 20px 80px;
+      padding: clamp(56px, 10dvh, 96px) 20px clamp(70px, 12dvh, 110px);
     }
     .orb-wrap {
       position: relative;
-      width: min(310px, 70vw);
+      width: min(310px, 68vw, 42dvh);
       aspect-ratio: 1;
       display: grid;
       place-items: center;
@@ -143,7 +148,7 @@
     }
 
     footer {
-      padding: 0 32px max(28px, env(safe-area-inset-bottom));
+      padding: 0 32px max(24px, env(safe-area-inset-bottom));
       display: grid;
       justify-items: center;
       gap: 14px;
@@ -160,8 +165,8 @@
     }
     .stop.visible { display: block; }
     .mic {
-      width: 82px;
-      height: 82px;
+      width: clamp(68px, 18vw, 82px);
+      height: clamp(68px, 18vw, 82px);
       border: none;
       border-radius: 50%;
       color: #fff;
@@ -182,7 +187,7 @@
       backdrop-filter: blur(18px);
     }
     .mic:disabled { opacity: .42; cursor: default; }
-    .mic svg { width: 31px; height: 31px; fill: currentColor; }
+    .mic svg { width: clamp(26px, 7vw, 31px); height: clamp(26px, 7vw, 31px); fill: currentColor; }
     .mic .icon-live { display: none; }
     .mic.live .icon-mic { display: none; }
     .mic.live .icon-live { display: block; }
@@ -246,7 +251,7 @@
       z-index: 110;
       display: grid;
       place-items: center;
-      padding: 24px;
+      padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
       background:
         radial-gradient(ellipse 80% 46% at 50% 106%, rgba(255,189,24,.72), rgba(255,122,47,.38) 44%, transparent 76%),
         rgba(9,9,13,.92);
@@ -254,11 +259,13 @@
     }
     .auth-gate.hidden { display: none; }
     .auth-card {
-      width: min(430px, 100%);
+      width: min(430px, calc(100vw - 28px));
+      max-height: calc(100dvh - 28px);
+      overflow: auto;
       border: 1px solid rgba(255,255,255,.14);
       border-radius: 8px;
       background: rgba(255,255,255,.08);
-      padding: 28px;
+      padding: clamp(20px, 5vw, 28px);
       text-align: center;
       box-shadow: 0 34px 90px rgba(0,0,0,.36);
     }
@@ -272,8 +279,9 @@
     }
     .auth-card h2 {
       margin: 0;
-      font-size: 30px;
+      font-size: clamp(24px, 7vw, 30px);
       line-height: 1.08;
+      overflow-wrap: anywhere;
     }
     .auth-card p {
       color: rgba(255,255,255,.66);
@@ -319,7 +327,7 @@
       animation: splashIn 1.05s cubic-bezier(.16, 1, .3, 1) both;
     }
     .splash-title {
-      font-size: clamp(48px, 11vw, 118px);
+      font-size: clamp(42px, 10vw, 118px);
       font-weight: 520;
       line-height: .95;
       letter-spacing: 0;
@@ -328,6 +336,8 @@
       background-clip: text;
       color: transparent;
       text-shadow: 0 26px 70px rgba(255,95,62,.25);
+      max-width: calc(100vw - 28px);
+      overflow-wrap: anywhere;
     }
     .splash-byline {
       margin-top: 14px;
@@ -359,6 +369,75 @@
     @keyframes splashLoad {
       0% { transform: translateX(-110%); }
       100% { transform: translateX(250%); }
+    }
+
+    @media (max-width: 560px) {
+      body {
+        background:
+          radial-gradient(ellipse 110% 44% at 50% 108%, rgba(255,63,95,.8) 0%, rgba(255,122,47,.68) 38%, transparent 76%),
+          linear-gradient(180deg, #101014 0%, #141217 44%, #5d2b20 100%);
+      }
+      main {
+        padding-top: 72px;
+        padding-bottom: 86px;
+      }
+      .orb-wrap {
+        width: min(260px, 76vw, 38dvh);
+      }
+      .support {
+        top: max(12px, env(safe-area-inset-top));
+        right: max(12px, env(safe-area-inset-right));
+        min-height: 38px;
+        padding: 0 12px;
+        font-size: 13px;
+      }
+      .support svg {
+        width: 17px;
+        height: 17px;
+      }
+      footer {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-bottom: max(18px, env(safe-area-inset-bottom));
+      }
+      .auth-dot {
+        width: 36px;
+        height: 36px;
+        margin-bottom: 14px;
+      }
+      .auth-card p {
+        font-size: 15px;
+      }
+      .splash-brand {
+        width: 100%;
+        padding: 0 14px;
+      }
+      .splash-title {
+        font-size: clamp(38px, 13vw, 64px);
+      }
+    }
+
+    @media (max-height: 620px) {
+      main {
+        padding-top: 56px;
+        padding-bottom: 70px;
+      }
+      .orb-wrap {
+        width: min(220px, 58vw, 34dvh);
+      }
+      .mic {
+        width: 64px;
+        height: 64px;
+      }
+      .support {
+        min-height: 36px;
+      }
+      .auth-card {
+        padding: 18px;
+      }
+      .auth-card p {
+        margin-bottom: 14px;
+      }
     }
   </style>
 </head>
