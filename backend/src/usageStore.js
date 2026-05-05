@@ -4,20 +4,39 @@ const fs = require('fs');
 const path = require('path');
 
 const usagePath = path.join(__dirname, '..', 'data', 'usage.json');
-const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+const supabaseUrl = normalizeSupabaseUrl(process.env.SUPABASE_URL || '');
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 function hasSupabase() {
   return Boolean(supabaseUrl && supabaseServiceRoleKey);
 }
 
+function normalizeSupabaseUrl(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/rest\/v1$/i, '');
+}
+
 async function recordLogin(profile) {
-  if (hasSupabase()) return recordLoginSupabase(profile);
+  if (hasSupabase()) {
+    try {
+      return await recordLoginSupabase(profile);
+    } catch (err) {
+      console.error('[Usage] Supabase login failed, falling back to file:', err.message);
+    }
+  }
   return recordLoginFile(profile);
 }
 
 async function recordEvent({ type, user }) {
-  if (hasSupabase()) return recordEventSupabase({ type, user });
+  if (hasSupabase()) {
+    try {
+      return await recordEventSupabase({ type, user });
+    } catch (err) {
+      console.error('[Usage] Supabase event failed, falling back to file:', err.message);
+    }
+  }
   return recordEventFile({ type, user });
 }
 
