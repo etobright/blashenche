@@ -76,6 +76,12 @@ app.get('/admin/usage', async (req, res) => {
       res.json(summary);
       return;
     }
+    if (req.query.format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="blashenche-usage.csv"');
+      res.send(renderUsageCsv(summary));
+      return;
+    }
     res.send(renderUsageDashboard(summary, req.query.pin));
   } catch (err) {
     console.error('[Usage] Summary error:', err.message);
@@ -115,8 +121,12 @@ async function verifyGoogleCredential(credential) {
 function renderUsageDashboard(summary, pin) {
   const users = summary.users || [];
   const events = summary.recentEvents || [];
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const loginsToday = events.filter((event) => event.type === 'login' && String(event.at || '').slice(0, 10) === todayKey).length;
+  const micToday = events.filter((event) => event.type === 'mic_start' && String(event.at || '').slice(0, 10) === todayKey).length;
+  const totalSessions = users.reduce((sum, user) => sum + Number(user.sessionCount || 0), 0);
   const rows = users.map((user) => `
-    <tr>
+    <tr data-user-row data-search="${escapeHtml(`${user.name || ''} ${user.email || ''}`.toLowerCase())}">
       <td>
         <div class="user">
           <img src="${escapeHtml(user.picture || '')}" alt="" onerror="this.style.display='none'">
@@ -126,15 +136,15 @@ function renderUsageDashboard(summary, pin) {
           </div>
         </div>
       </td>
-      <td>${Number(user.loginCount || 0)}</td>
-      <td>${Number(user.sessionCount || 0)}</td>
+      <td><span class="pill">${Number(user.loginCount || 0)}</span></td>
+      <td><span class="pill hot">${Number(user.sessionCount || 0)}</span></td>
       <td>${formatDate(user.firstSeenAt)}</td>
       <td>${formatDate(user.lastSeenAt)}</td>
     </tr>
   `).join('');
 
   const eventItems = events.map((event) => `
-    <li>
+    <li data-event-item data-type="${escapeHtml(event.type || 'event')}" data-search="${escapeHtml(`${event.type || ''} ${event.email || ''} ${event.sub || ''}`.toLowerCase())}">
       <span class="event-dot"></span>
       <div>
         <strong>${escapeHtml(event.type || 'event')}</strong>
@@ -204,6 +214,7 @@ function renderUsageDashboard(summary, pin) {
       flex-wrap: wrap;
     }
     .button {
+      cursor: pointer;
       border: 1px solid rgba(255,255,255,.14);
       border-radius: 999px;
       color: #fff;
@@ -211,6 +222,11 @@ function renderUsageDashboard(summary, pin) {
       padding: 10px 15px;
       font-weight: 700;
       font-size: 14px;
+    }
+    .button.primary {
+      border: none;
+      background: linear-gradient(135deg, var(--gold), var(--orange), var(--red));
+      box-shadow: 0 14px 34px rgba(255,95,62,.24);
     }
     .hero {
       display: grid;
@@ -271,7 +287,7 @@ function renderUsageDashboard(summary, pin) {
     }
     .metrics {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 16px;
       margin-bottom: 16px;
     }
@@ -288,6 +304,29 @@ function renderUsageDashboard(summary, pin) {
       display: block;
       margin-top: 10px;
       color: var(--muted);
+    }
+    .tools {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .input,
+    .select {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 999px;
+      color: #fff;
+      background: rgba(255,255,255,.08);
+      padding: 0 16px;
+      outline: none;
+      font: inherit;
+    }
+    .select {
+      appearance: none;
+      min-width: 170px;
+      cursor: pointer;
     }
     .content {
       display: grid;
@@ -323,6 +362,21 @@ function renderUsageDashboard(summary, pin) {
       text-align: left;
       vertical-align: middle;
       white-space: nowrap;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 34px;
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.09);
+      border: 1px solid rgba(255,255,255,.1);
+    }
+    .pill.hot {
+      background: rgba(255,122,47,.14);
+      border-color: rgba(255,122,47,.28);
     }
     th {
       color: rgba(255,255,255,.48);
@@ -370,6 +424,10 @@ function renderUsageDashboard(summary, pin) {
       background: linear-gradient(135deg, var(--gold), var(--red));
       flex: 0 0 auto;
     }
+    .event-filter-hidden,
+    .search-hidden {
+      display: none !important;
+    }
     .events strong,
     .events span {
       display: block;
@@ -391,6 +449,7 @@ function renderUsageDashboard(summary, pin) {
       .content {
         grid-template-columns: 1fr;
       }
+      .tools { grid-template-columns: 1fr; }
       .topbar { align-items: flex-start; flex-direction: column; }
       .panel { overflow-x: auto; }
     }
@@ -401,7 +460,8 @@ function renderUsageDashboard(summary, pin) {
     <div class="topbar">
       <div class="brand"><span class="dot"></span><span>Blashenche Admin</span></div>
       <div class="actions">
-        <a class="button" href="/admin/usage?pin=${encodeURIComponent(pin || '')}">Actualiser</a>
+        <a class="button primary" href="/admin/usage?pin=${encodeURIComponent(pin || '')}">Actualiser</a>
+        <a class="button" href="/admin/usage?pin=${encodeURIComponent(pin || '')}&format=csv">Exporter CSV</a>
         <a class="button" href="/admin/usage?pin=${encodeURIComponent(pin || '')}&format=json">JSON</a>
         <a class="button" href="/">Ouvrir l'app</a>
       </div>
@@ -421,7 +481,19 @@ function renderUsageDashboard(summary, pin) {
     <section class="metrics">
       <div class="metric"><b>${Number(summary.totalUsers || 0)}</b><span>utilisateurs</span></div>
       <div class="metric"><b>${Number(summary.totalEvents || 0)}</b><span>evenements recents</span></div>
-      <div class="metric"><b>${users.reduce((sum, user) => sum + Number(user.sessionCount || 0), 0)}</b><span>sessions micro</span></div>
+      <div class="metric"><b>${totalSessions}</b><span>sessions micro</span></div>
+      <div class="metric"><b>${loginsToday}</b><span>connexions aujourd'hui</span></div>
+      <div class="metric"><b>${micToday}</b><span>micros aujourd'hui</span></div>
+    </section>
+
+    <section class="tools">
+      <input id="searchInput" class="input" type="search" placeholder="Rechercher un nom, email ou evenement...">
+      <select id="eventFilter" class="select">
+        <option value="all">Tous les evenements</option>
+        <option value="login">Connexions</option>
+        <option value="mic_start">Sessions micro</option>
+      </select>
+      <button id="clearFilters" class="button" type="button">Effacer</button>
     </section>
 
     <section class="content">
@@ -455,8 +527,59 @@ function renderUsageDashboard(summary, pin) {
       </aside>
     </section>
   </div>
+  <script>
+    const searchInput = document.getElementById('searchInput');
+    const eventFilter = document.getElementById('eventFilter');
+    const clearFilters = document.getElementById('clearFilters');
+    const userRows = [...document.querySelectorAll('[data-user-row]')];
+    const eventItems = [...document.querySelectorAll('[data-event-item]')];
+
+    function applyFilters() {
+      const query = searchInput.value.trim().toLowerCase();
+      const eventType = eventFilter.value;
+
+      userRows.forEach((row) => {
+        row.classList.toggle('search-hidden', Boolean(query) && !row.dataset.search.includes(query));
+      });
+
+      eventItems.forEach((item) => {
+        const matchesSearch = !query || item.dataset.search.includes(query);
+        const matchesType = eventType === 'all' || item.dataset.type === eventType;
+        item.classList.toggle('search-hidden', !matchesSearch);
+        item.classList.toggle('event-filter-hidden', !matchesType);
+      });
+    }
+
+    searchInput.addEventListener('input', applyFilters);
+    eventFilter.addEventListener('change', applyFilters);
+    clearFilters.addEventListener('click', () => {
+      searchInput.value = '';
+      eventFilter.value = 'all';
+      applyFilters();
+    });
+  </script>
 </body>
 </html>`;
+}
+
+function renderUsageCsv(summary) {
+  const users = summary.users || [];
+  const lines = [
+    ['name', 'email', 'login_count', 'session_count', 'first_seen_at', 'last_seen_at'],
+    ...users.map((user) => [
+      user.name || '',
+      user.email || '',
+      Number(user.loginCount || 0),
+      Number(user.sessionCount || 0),
+      user.firstSeenAt || '',
+      user.lastSeenAt || '',
+    ]),
+  ];
+  return lines.map((line) => line.map(csvCell).join(',')).join('\n');
+}
+
+function csvCell(value) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
 function formatDate(value) {
